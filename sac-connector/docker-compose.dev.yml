@@ -1,0 +1,14 @@
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: vecxel_mongo_dev
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_dev_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: vecxeldigital
+
+volumes:
+  mongo_dev_data:
