@@ -91,4 +91,25 @@ function parseInventoryFile(content) {
   return { products, errors };
 }
 
-module.exports = { parseInventoryFile };
+const ERROR_THRESHOLD = 0.10;
+
+function validateAndParseInventoryFile(content) {
+  const result = parseInventoryFile(content);
+  const totalLines = result.products.length + result.errors.length;
+
+  if (totalLines === 0) {
+    throw new Error('El archivo está vacío o no contiene líneas procesables.');
+  }
+
+  const errorRate = result.errors.length / totalLines;
+  if (errorRate > ERROR_THRESHOLD) {
+    throw new Error(
+      `Tasa de error crítica: ${(errorRate * 100).toFixed(1)}% de líneas inválidas ` +
+      `(${result.errors.length} de ${totalLines}). Verifique el archivo antes de subir.`
+    );
+  }
+
+  return result;
+}
+
+module.exports = { parseInventoryFile, validateAndParseInventoryFile };

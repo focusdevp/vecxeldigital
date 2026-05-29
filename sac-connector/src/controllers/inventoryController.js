@@ -1,47 +1,72 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const Product = require('../models/Product');
 const SyncLog = require('../models/SyncLog');
-const { parseInventoryFile } = require('../services/inventoryParser');
+const { validateAndParseInventoryFile } = require('../services/inventoryParser');
 
-const processedDir = path.join(__dirname, '../../processed');
-if (!fs.existsSync(processedDir)) {
-  fs.mkdirSync(processedDir, { recursive: true });
+const storageDir = path.join(__dirname, '../../storage/uploads');
+if (!fs.existsSync(storageDir)) {
+  fs.mkdirSync(storageDir, { recursive: true });
 }
 
 const uploadInventory = async (req, res) => {
   const receivedFile = req.files && req.files[0];
-  console.log('[UPLOAD] Campos recibidos:', req.files ? req.files.map(f => f.fieldname) : 'ninguno');
-
   if (!receivedFile) {
     return res.status(400).json({ success: false, error: 'No se recibió ningún archivo.' });
   }
 
   const filePath = receivedFile.path;
   const fileName = receivedFile.filename;
+  const inicio_procesamiento = new Date();
 
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const { products, errors } = parseInventoryFile(content);
+    const checksum = crypto.createHash('md5').update(content).digest('hex');
 
-    let procesados = 0;
-
-    for (const product of products) {
-      await Product.findOneAndUpdate(
-        { sku: product.sku },
-        { $set: product },
-        { upsert: true, new: true, runValidators: true }
-      );
-      procesados++;
+    const duplicate = await SyncLog.findOne({
+      checksum,
+      estado: { $ne: 'fallido' },
+      createdAt: { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+    });
+    if (duplicate) {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      return res.status(409).json({
+        success: false,
+        error: 'Este archivo ya fue procesado en la última hora. Verifique si es un duplicado.',
+        log_id: duplicate._id
+      });
     }
 
-    const estado =
-      errors.length === 0 ? 'exitoso' : procesados > 0 ? 'parcial' : 'fallido';
+    const { products, errors } = validateAndParseInventoryFile(content);
+
+    const operations = products.map(product => ({
+      updateOne: {
+        filter: { sku: product.sku },
+        update: { $set: product },
+        upsert: true
+      }
+    }));
+
+    const bulkResult = await Product.bulkWrite(operations, { ordered: false });
+    const procesados = (bulkResult.upsertedCount ?? 0) + (bulkResult.modifiedCount ?? 0) + (bulkResult.matchedCount ?? 0);
+
+    const fin_procesamiento = new Date();
+    const duracion_ms = fin_procesamiento - inicio_procesamiento;
+    const estado = errors.length === 0 ? 'exitoso' : procesados > 0 ? 'parcial' : 'fallido';
+
+    const storagePath = path.join(storageDir, fileName);
+    fs.renameSync(filePath, storagePath);
 
     const log = await SyncLog.create({
       tipo: 'upload',
       entidad: 'inventario',
-      archivo: fileName,
+      archivo: receivedFile.originalname || fileName,
+      archivo_path: storagePath,
+      checksum,
+      inicio_procesamiento,
+      fin_procesamiento,
+      duracion_ms,
       total_registros: products.length + errors.length,
       registros_procesados: procesados,
       registros_error: errors.length,
@@ -50,8 +75,6 @@ const uploadInventory = async (req, res) => {
       ip_origen: req.ip
     });
 
-    fs.renameSync(filePath, path.join(processedDir, fileName));
-
     return res.status(200).json({
       success: true,
       mensaje: `Inventario sincronizado: ${procesados} productos procesados.`,
@@ -59,17 +82,22 @@ const uploadInventory = async (req, res) => {
       registros_procesados: procesados,
       registros_error: errors.length,
       errores: errors.length > 0 ? errors.slice(0, 10) : undefined,
+      duracion_ms,
       estado,
       log_id: log._id,
-      timestamp: new Date().toISOString()
+      timestamp: fin_procesamiento.toISOString()
     });
   } catch (error) {
+    const fin_procesamiento = new Date();
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
     await SyncLog.create({
       tipo: 'upload',
       entidad: 'inventario',
       archivo: fileName,
+      inicio_procesamiento,
+      fin_procesamiento,
+      duracion_ms: fin_procesamiento - inicio_procesamiento,
       total_registros: 0,
       registros_procesados: 0,
       registros_error: 1,
@@ -78,7 +106,22 @@ const uploadInventory = async (req, res) => {
       ip_origen: req.ip
     });
 
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(422).json({ success: false, error: error.message });
+  }
+};
+
+const downloadInventoryFile = async (req, res) => {
+  try {
+    const log = await SyncLog.findById(req.params.id).select('archivo archivo_path');
+    if (!log || !log.archivo_path) {
+      return res.status(404).json({ error: 'Archivo no disponible para este log.' });
+    }
+    if (!fs.existsSync(log.archivo_path)) {
+      return res.status(404).json({ error: 'El archivo fue eliminado del servidor.' });
+    }
+    res.download(log.archivo_path, log.archivo || 'inventario.txt');
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -122,6 +165,12 @@ const getProductBySku = async (req, res) => {
 
 const resetInventory = async (req, res) => {
   try {
+    const logs = await SyncLog.find({}, 'archivo_path');
+    for (const log of logs) {
+      if (log.archivo_path && fs.existsSync(log.archivo_path)) {
+        fs.unlinkSync(log.archivo_path);
+      }
+    }
     const result = await Product.deleteMany({});
     await SyncLog.deleteMany({});
     return res.status(200).json({
@@ -161,4 +210,4 @@ const getSyncLogs = async (req, res) => {
   }
 };
 
-module.exports = { uploadInventory, getInventory, getProductBySku, resetInventory, getSyncLogs };
+module.exports = { uploadInventory, downloadInventoryFile, getInventory, getProductBySku, resetInventory, getSyncLogs };

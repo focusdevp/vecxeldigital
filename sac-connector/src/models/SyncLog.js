@@ -22,6 +22,11 @@ const syncLogSchema = new mongoose.Schema(
       required: true
     },
     archivo: { type: String },
+    archivo_path: { type: String },
+    checksum: { type: String },
+    inicio_procesamiento: { type: Date },
+    fin_procesamiento: { type: Date },
+    duracion_ms: { type: Number },
     total_registros: { type: Number, default: 0 },
     registros_procesados: { type: Number, default: 0 },
     registros_error: { type: Number, default: 0 },

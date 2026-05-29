@@ -9,7 +9,6 @@ export default function InventarioClient({ data, currentPage, sku, limit }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState(sku);
-
   const totalPages = Math.ceil(data.total / limit);
 
   const applySearch = (value) => {
@@ -32,90 +31,88 @@ export default function InventarioClient({ data, currentPage, sku, limit }) {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-white mb-1">Inventario</h1>
-      <p className="text-gray-400 text-sm mb-6">
-        {data.total.toLocaleString()} productos cargados desde SAC
-      </p>
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold text-slate-900">Inventario</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          {data.total.toLocaleString()} productos sincronizados desde SAC
+        </p>
+      </div>
 
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1 max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder="Buscar por SKU o descripción..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && applySearch(search)}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            className="w-full h-9 bg-white border border-slate-200 rounded-md pl-9 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        <button
-          onClick={() => applySearch(search)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition-colors"
-        >
+        <button onClick={() => applySearch(search)}
+          className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors">
           Buscar
         </button>
         {sku && (
-          <button
-            onClick={() => { setSearch(""); applySearch(""); }}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-lg transition-colors"
-          >
+          <button onClick={() => { setSearch(""); applySearch(""); }}
+            className="h-9 px-4 border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-md transition-colors">
             Limpiar
           </button>
         )}
       </div>
 
-      <div className={`rounded-xl border border-gray-800 overflow-hidden transition-opacity ${isPending ? "opacity-50" : ""}`}>
+      <div className={`bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm transition-opacity ${isPending ? "opacity-50" : ""}`}>
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-900 border-b border-gray-800">
-              <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">SKU</th>
-              <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">DESCRIPCIÓN</th>
-              <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">UNIDAD</th>
-              <th className="text-right px-4 py-3 text-xs text-gray-400 font-medium">PRECIO USD</th>
-              <th className="text-center px-4 py-3 text-xs text-gray-400 font-medium">ALM 00</th>
-              <th className="text-center px-4 py-3 text-xs text-gray-400 font-medium">ALM 30</th>
-              <th className="text-center px-4 py-3 text-xs text-gray-400 font-medium">ALM 40</th>
-              <th className="text-center px-4 py-3 text-xs text-gray-400 font-medium">ALM 60</th>
-              <th className="text-center px-4 py-3 text-xs text-gray-400 font-medium">ESTADO</th>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">SKU</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Descripción</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Unidad</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Precio</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Alm 00</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Alm 30</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Alm 40</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Alm 60</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Estado</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/50">
+          <tbody className="divide-y divide-slate-200">
             {data.productos.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center py-16 text-gray-500">
-                  <Package size={32} className="mx-auto mb-2 opacity-30" />
-                  No se encontraron productos
+                <td colSpan={10} className="text-center py-16 text-slate-400">
+                  <Package size={28} className="mx-auto mb-2 text-slate-300" />
+                  <p className="text-sm">No se encontraron productos</p>
                 </td>
               </tr>
             ) : (
               data.productos.map((p) => {
                 const stock = (codigo) => p.almacenes?.find((a) => a.codigo === codigo)?.existencia ?? "—";
                 return (
-                  <tr key={p._id} className="hover:bg-gray-900/50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs text-blue-300">{p.sku}</td>
-                    <td className="px-4 py-3 text-gray-200 max-w-xs truncate">{p.descripcion}</td>
-                    <td className="px-4 py-3 text-gray-400">{p.unidad_medida}</td>
-                    <td className="px-4 py-3 text-right font-medium text-green-400">
+                  <tr key={p._id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-2.5 font-mono text-xs text-blue-600 font-medium">{p.sku}</td>
+                    <td className="px-4 py-2.5 text-slate-700 max-w-xs truncate">{p.descripcion}</td>
+                    <td className="px-4 py-2.5 text-slate-500 text-xs">{p.unidad_medida}</td>
+                    <td className="px-4 py-2.5 text-right font-medium text-emerald-600">
                       ${p.precio_usd?.toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-300">{stock("00")}</td>
-                    <td className="px-4 py-3 text-center text-gray-300">{stock("30")}</td>
-                    <td className="px-4 py-3 text-center text-gray-300">{stock("40")}</td>
-                    <td className="px-4 py-3 text-center text-gray-300">{stock("60")}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        p.activo ? "bg-green-900/60 text-green-300" : "bg-gray-800 text-gray-500"
+                    <td className="px-4 py-2.5 text-center text-slate-600 text-xs">{stock("00")}</td>
+                    <td className="px-4 py-2.5 text-center text-slate-600 text-xs">{stock("30")}</td>
+                    <td className="px-4 py-2.5 text-center text-slate-600 text-xs">{stock("40")}</td>
+                    <td className="px-4 py-2.5 text-center text-slate-600 text-xs">{stock("60")}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${
+                        p.activo
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-100 text-slate-500"
                       }`}>
                         {p.activo ? "Activo" : "Inactivo"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/inventario/${encodeURIComponent(p.sku)}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs rounded-lg transition-colors"
-                      >
+                    <td className="px-4 py-2.5 text-right">
+                      <Link href={`/inventario/${encodeURIComponent(p.sku)}`}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-medium rounded-md transition-colors">
                         <Eye size={12} />
                         Ver
                       </Link>
@@ -130,23 +127,17 @@ export default function InventarioClient({ data, currentPage, sku, limit }) {
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-slate-500">
             Página {currentPage} de {totalPages} — {data.total.toLocaleString()} productos
           </p>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft size={16} />
+            <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1}
+              className="p-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              <ChevronLeft size={14} />
             </button>
-            <button
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="p-1.5 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight size={16} />
+            <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages}
+              className="p-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>
