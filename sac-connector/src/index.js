@@ -4,6 +4,8 @@ const cors = require('cors');
 const morgan = require('morgan');
 const connectDB = require('./config/db');
 const syncRoutes = require('./routes/sync');
+const apiRoutes = require('./routes/api');
+const clientRoutes = require('./routes/clients');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -24,6 +26,8 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/sync', syncRoutes);
+app.use('/api', apiRoutes);
+app.use('/api', clientRoutes);
 
 app.use((err, req, res, next) => {
   console.error(`[ERROR] ${err.message}`);

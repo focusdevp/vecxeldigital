@@ -91,7 +91,7 @@ function parseInventoryFile(content) {
   return { products, errors };
 }
 
-const ERROR_THRESHOLD = 0.10;
+const ERROR_THRESHOLD = 0.05; // Reducido de 10% a 5% para mayor seguridad
 
 function validateAndParseInventoryFile(content) {
   const result = parseInventoryFile(content);

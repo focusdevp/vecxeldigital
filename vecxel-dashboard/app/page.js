@@ -5,8 +5,8 @@ export default async function DashboardPage() {
 
   try {
     const res = await fetch(
-      `${process.env.CONNECTOR_URL}/sync/inventario?limit=1`,
-      { headers: { "X-API-Key": process.env.CONNECTOR_API_KEY }, cache: "no-store" }
+      `${process.env.API_URL}/inventario?limit=1`,
+      { headers: { "X-API-Key": process.env.API_KEY }, cache: "no-store" }
     );
     if (res.ok) {
       const data = await res.json();
@@ -14,8 +14,8 @@ export default async function DashboardPage() {
     }
 
     const logsRes = await fetch(
-      `${process.env.CONNECTOR_URL}/sync/logs?limit=1&entidad=inventario`,
-      { headers: { "X-API-Key": process.env.CONNECTOR_API_KEY }, cache: "no-store" }
+      `${process.env.API_URL}/logs?limit=1&entidad=inventario`,
+      { headers: { "X-API-Key": process.env.API_KEY }, cache: "no-store" }
     );
     if (logsRes.ok) {
       const logsData = await logsRes.json();

@@ -1,9 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const axios = require('axios');
 const Product = require('../models/Product');
 const SyncLog = require('../models/SyncLog');
 const { validateAndParseInventoryFile } = require('../services/inventoryParser');
+const { validateInventoryFile } = require('../services/fileValidator');
 
 const storageDir = path.join(__dirname, '../../storage/uploads');
 if (!fs.existsSync(storageDir)) {
@@ -21,7 +23,58 @@ const uploadInventory = async (req, res) => {
   const inicio_procesamiento = new Date();
 
   try {
-    const content = fs.readFileSync(filePath, 'utf-8');
+    // Leer archivo como buffer para validación
+    const buffer = fs.readFileSync(filePath);
+    
+    // VALIDACIÓN ROBUSTA - 5 CAPAS DE SEGURIDAD
+    const validationReport = await validateInventoryFile(buffer, fileName);
+    
+    // Si la validación falla, rechazar inmediatamente
+    if (!validationReport.isValid) {
+      // Eliminar archivo inválido
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      
+      // Registrar intento fallido en logs
+      // Convertir errores a formato esperado por el schema
+      const erroresFormateados = validationReport.errores.slice(0, 50).map((error, index) => ({
+        linea: index + 1,
+        contenido: '',
+        motivo: typeof error === 'string' ? error : JSON.stringify(error)
+      }));
+      
+      await SyncLog.create({
+        tipo: 'upload',
+        entidad: 'inventario',
+        archivo: receivedFile.originalname || fileName,
+        inicio_procesamiento: inicio_procesamiento,
+        fin_procesamiento: new Date(),
+        duracion_ms: Date.now() - inicio_procesamiento,
+        total_registros: validationReport.estructura.lineas_totales || 0,
+        registros_procesados: 0,
+        registros_error: validationReport.estructura.lineas_totales || 0,
+        errores: erroresFormateados,
+        estado: 'fallido',
+        ip_origen: req.ip
+      });
+      
+      // Retornar respuesta detallada
+      return res.status(422).json({
+        success: false,
+        codigo_error: 'VALIDATION_FAILED',
+        mensaje: 'El archivo no cumple con los requisitos de validación',
+        validaciones: validationReport,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Si hay advertencias, registrarlas para revisión
+    if (validationReport.advertencias.length > 0) {
+      console.log(`[ADVERTENCIA] Archivo ${fileName} tiene ${validationReport.advertencias.length} advertencias`);
+      validationReport.advertencias.slice(0, 5).forEach(warning => console.log(`  - ${warning}`));
+    }
+    
+    // Archivo válido, continuar con procesamiento normal
+    const content = buffer.toString('utf-8');
     const checksum = crypto.createHash('md5').update(content).digest('hex');
 
     const duplicate = await SyncLog.findOne({
@@ -54,6 +107,36 @@ const uploadInventory = async (req, res) => {
     const fin_procesamiento = new Date();
     const duracion_ms = fin_procesamiento - inicio_procesamiento;
     const estado = errors.length === 0 ? 'exitoso' : procesados > 0 ? 'parcial' : 'fallido';
+
+    // SINCRONIZAR CON VECXEL API
+    // Notificar a Vecxel API para que guarde copia en vecxel_app_db
+    if (procesados > 0 && process.env.VECXEL_API_URL) {
+      try {
+        console.log(`[SAC Connector] Sincronizando ${procesados} productos con Vecxel API...`);
+        
+        const syncResponse = await axios.post(
+          `${process.env.VECXEL_API_URL}/inventario/sync`,
+          {
+            productos: products,
+            origen: 'sac',
+            timestamp: fin_procesamiento.toISOString()
+          },
+          {
+            headers: {
+              'X-API-Key': process.env.VECXEL_API_KEY,
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000
+          }
+        );
+        
+        console.log(`[SAC Connector] Sync exitoso: ${syncResponse.data.synced} productos sincronizados con Vecxel API`);
+      } catch (syncError) {
+        console.error(`[SAC Connector] ERROR sincronizando con Vecxel API: ${syncError.message}`);
+        // No fallar la operación si la sincronización con Vecxel falla
+        // Los datos ya están guardados en SAC Connector
+      }
+    }
 
     const storagePath = path.join(storageDir, fileName);
     fs.renameSync(filePath, storagePath);

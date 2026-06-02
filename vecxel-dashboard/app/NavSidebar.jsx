@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Package, ClipboardList, Users } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/inventario", label: "Inventario", icon: Package },
+  { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/logs", label: "Logs de Sync", icon: ClipboardList },
 ];
 

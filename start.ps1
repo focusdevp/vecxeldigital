@@ -3,6 +3,7 @@
 
 $rootDir      = $PSScriptRoot
 $connectorDir = "$rootDir\sac-connector"
+$apiDir       = "$rootDir\vecxel-api"
 $dashboardDir = "$rootDir\vecxel-dashboard"
 
 Write-Host ""
@@ -12,7 +13,7 @@ Write-Host "=====================================================" -ForegroundCo
 Write-Host ""
 
 # 1. Verificar Docker
-Write-Host "[1/4] Verificando Docker Desktop..." -ForegroundColor Yellow
+Write-Host "[1/5] Verificando Docker Desktop..." -ForegroundColor Yellow
 $dockerCheck = docker ps 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host "      ERROR: Docker Desktop no esta corriendo. Abrelo e intenta de nuevo." -ForegroundColor Red
@@ -22,7 +23,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "      Docker OK." -ForegroundColor Green
 
 # 2. MongoDB
-Write-Host "[2/4] Iniciando MongoDB (Docker)..." -ForegroundColor Yellow
+Write-Host "[2/5] Iniciando MongoDB (Docker)..." -ForegroundColor Yellow
 docker compose -f "$connectorDir\docker-compose.dev.yml" up -d
 if ($LASTEXITCODE -ne 0) {
     Write-Host "      ERROR: Fallo docker compose up." -ForegroundColor Red
@@ -45,12 +46,18 @@ if (-not $ready) {
 }
 
 # 3. SAC Connector (puerto 4000)
-Write-Host "[3/4] Iniciando SAC Connector en puerto 4000..." -ForegroundColor Yellow
+Write-Host "[3/5] Iniciando SAC Connector en puerto 4000..." -ForegroundColor Yellow
 Start-Process cmd.exe -ArgumentList "/k title SAC-Connector && npm run dev" -WorkingDirectory $connectorDir -WindowStyle Normal
 Start-Sleep -Seconds 3
 
-# 4. Dashboard Next.js (puerto 3000)
-Write-Host "[4/4] Iniciando Dashboard Next.js en puerto 3000..." -ForegroundColor Yellow
+# 4. Vecxel API FastAPI (puerto 8000)
+Write-Host "[4/5] Iniciando Vecxel API en puerto 8000..." -ForegroundColor Yellow
+$apiCmd = "cd '$apiDir' && .\venv\Scripts\activate && uvicorn app.main:app --port 8000 --reload"
+Start-Process cmd.exe -ArgumentList "/k title Vecxel-API && $apiCmd" -WorkingDirectory $apiDir -WindowStyle Normal
+Start-Sleep -Seconds 4
+
+# 5. Dashboard Next.js (puerto 3000)
+Write-Host "[5/5] Iniciando Dashboard Next.js en puerto 3000..." -ForegroundColor Yellow
 Start-Process cmd.exe -ArgumentList "/k title Dashboard && npm run dev" -WorkingDirectory $dashboardDir -WindowStyle Normal
 Start-Sleep -Seconds 8
 
@@ -60,8 +67,9 @@ Write-Host "=====================================================" -ForegroundCo
 Write-Host "  Todo corriendo!" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Dashboard  ->  http://localhost:3000" -ForegroundColor White
+Write-Host "  API        ->  http://localhost:8000" -ForegroundColor White
 Write-Host "  Connector  ->  http://localhost:4000" -ForegroundColor White
-Write-Host "  MongoDB    ->  localhost:27017" -ForegroundColor White
+Write-Host "  MongoDB    ->  localhost:27018" -ForegroundColor White
 Write-Host ""
 Write-Host "  Para detener: .\stop.ps1" -ForegroundColor Gray
 Write-Host "=====================================================" -ForegroundColor Green

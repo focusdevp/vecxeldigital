@@ -10,8 +10,8 @@ Write-Host "  Vecxel Intranet - Deteniendo servicios             " -ForegroundCo
 Write-Host "=====================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Liberar puertos 3000 y 4000
-foreach ($port in @(3000, 4000)) {
+# Liberar puertos 3000, 4000 y 8000
+foreach ($port in @(3000, 4000, 8000)) {
     $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
     $procIds = $connections | Select-Object -ExpandProperty OwningProcess -Unique
     foreach ($p in $procIds) {

@@ -1,0 +1,4 @@
+BISA100X42          ;BISAGRA 100x42                          ;UND ;ABC12.50;00;00000;30;00000;
+BISA25X34           ;BISAGRA 25X34                           ;UND ;GRATIS;00;00100;30;00050;
+TORNILLO8MM         ;TORNILLO 8MM                            ;UND ;-50.00;00;05000;30;02000;
+TUERCA10MM          ;TUERCA 10MM                             ;UND ;999999999.99;00;03000;30;01500;

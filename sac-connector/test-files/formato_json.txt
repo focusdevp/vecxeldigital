@@ -1,0 +1,9 @@
+{
+  "productos": [
+    {
+      "sku": "BISA100X42",
+      "descripcion": "BISAGRA 100x42",
+      "precio": 1.50
+    }
+  ]
+}
