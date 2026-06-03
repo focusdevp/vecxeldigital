@@ -137,3 +137,22 @@ async def create_cliente(
         "rif": cliente_dict["rif"],
         "archivo_generado": archivo_generado
     }
+
+
+@router.delete("/reset")
+async def reset_clientes(
+    _: str = Depends(verify_api_key)
+):
+    """
+    Eliminar todos los clientes de la base de datos
+    """
+    db = get_db()
+    result = await db.clientes.delete_many({})
+    
+    print(f"[Clientes] Clientes eliminados: {result.deleted_count} registros")
+    
+    return {
+        "success": True,
+        "mensaje": f"Clientes eliminados: {result.deleted_count} registros",
+        "eliminados": result.deleted_count
+    }

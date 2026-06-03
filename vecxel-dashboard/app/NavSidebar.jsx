@@ -17,6 +17,7 @@ export default function NavSidebar() {
   return (
     <aside className="w-64 bg-slate-900 flex flex-col shrink-0 h-full">
       <div className="px-5 py-5 border-b border-slate-800">
+        <img src="/logovecxel.jpg" alt="Vecxel Logo" className="h-10 w-auto mb-2" />
         <span className="text-base font-semibold text-white tracking-tight">Vecxel Intranet</span>
         <p className="text-xs text-slate-500 mt-0.5 uppercase tracking-wider">SAC Connector</p>
       </div>

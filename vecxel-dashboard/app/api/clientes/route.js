@@ -33,3 +33,16 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: "Error conectando con API" }, { status: 503 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const res = await fetch(`${API_URL}/clientes/reset`, {
+      method: "DELETE",
+      headers: { "X-API-Key": API_KEY },
+    });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
+  } catch {
+    return NextResponse.json({ success: false, error: "Error conectando con API" }, { status: 503 });
+  }
+}

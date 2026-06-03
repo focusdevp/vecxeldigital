@@ -1,0 +1,28 @@
+services:
+  # MongoDB para SAC Connector (caja negra)
+  mongodb_sac:
+    image: mongo:8.0
+    container_name: sac_connector_db
+    restart: unless-stopped
+    ports:
+      - '27018:27017'
+    volumes:
+      - mongo_sac_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: sac_connector
+
+  # MongoDB para Vecxel App (aplicación principal)
+  mongodb_app:
+    image: mongo:8.0
+    container_name: vecxel_app_db
+    restart: unless-stopped
+    ports:
+      - '27019:27017'
+    volumes:
+      - mongo_app_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: vecxel_app
+
+volumes:
+  mongo_sac_data:
+  mongo_app_data:

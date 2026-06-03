@@ -14,13 +14,24 @@ export default function DashboardClient({ stats }) {
   const handleReset = async () => {
     setResetting(true);
     try {
-      const res = await fetch("/api/sync/inventario/reset", { method: "DELETE" });
-      const data = await res.json();
-      setResult({ ...data, success: true, mensaje: data.mensaje });
-      window.location.reload();
+      // Borrar SAC Connector DB
+      const resSAC = await fetch("/api/sync/inventario/reset", { method: "DELETE" });
+      const dataSAC = await resSAC.json();
+      
+      // Borrar Vecxel API DB
+      const resVecxel = await fetch("/api/inventario/reset", { method: "DELETE" });
+      const dataVecxel = await resVecxel.json();
+      
+      const totalEliminados = (dataSAC.eliminados || 0) + (dataVecxel.eliminados || 0);
+      setResult({ 
+        success: true, 
+        mensaje: `Bases de datos limpiadas. ${totalEliminados} productos eliminados en total.` 
+      });
+      
+      // Esperar 500ms antes de recargar para que se vea el mensaje
+      setTimeout(() => window.location.reload(), 500);
     } catch {
-      setResult({ error: true, mensaje: "Error al limpiar la base de datos." });
-    } finally {
+      setResult({ error: true, mensaje: "Error al limpiar las bases de datos." });
       setResetting(false);
       setShowConfirm(false);
     }
@@ -34,7 +45,7 @@ export default function DashboardClient({ stats }) {
     setUploading(true);
     setResult(null);
     const formData = new FormData();
-    formData.append("archivo", file);
+    formData.append("file", file);
     try {
       const res = await fetch("/api/sync/inventario", { method: "POST", body: formData });
       const data = await res.json();

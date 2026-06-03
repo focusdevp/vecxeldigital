@@ -2,7 +2,7 @@
 # Detiene: procesos en 3000/4000 + MongoDB Docker
 
 $rootDir      = $PSScriptRoot
-$connectorDir = "$rootDir\sac-connector"
+$connectorDir = "$rootDir\sac-connector-fastapi"
 
 Write-Host ""
 Write-Host "=====================================================" -ForegroundColor Cyan

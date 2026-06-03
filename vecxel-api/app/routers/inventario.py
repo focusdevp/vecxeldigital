@@ -163,3 +163,27 @@ async def get_producto_by_sku(
     except Exception as e:
         print(f"[Inventario] Error obteniendo SKU {sku}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@router.delete("/reset")
+async def reset_inventario(
+    _: str = Depends(verify_api_key)
+):
+    """
+    PELIGRO: Eliminar todos los productos de Vecxel API DB.
+    Solo para desarrollo/testing.
+    """
+    db = get_db()
+    
+    try:
+        # Eliminar todos los productos
+        result = await db.productos.delete_many({})
+        
+        return {
+            "success": True,
+            "mensaje": f"Base de datos Vecxel API limpiada. {result.deleted_count} productos eliminados.",
+            "eliminados": result.deleted_count
+        }
+    except Exception as e:
+        print(f"[Reset] Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al limpiar base de datos: {str(e)}")

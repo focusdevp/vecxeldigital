@@ -59,7 +59,7 @@ Sistema híbrido con **2 bases de datos completamente separadas** para integraci
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Estado Actual (01/06/2026 - 16:30)
+## Estado Actual (03/06/2026)
 
 ### ✅ Completado
 
@@ -68,58 +68,72 @@ Sistema híbrido con **2 bases de datos completamente separadas** para integraci
    - `vecxel_app_db` en puerto 27019 ✅
    - Docker Compose configurado con ambas instancias ✅
 
-2. **SAC Connector (Express):**
-   - POST `/sync/inventario` - recibe TXT, parsea, valida ✅
-   - GET `/api/inventario` - endpoint REST para consultas ✅
-   - GET `/api/inventario/:sku` - búsqueda por SKU ✅
-   - 735 productos cargados en `sac_connector` DB ✅
-   - Parser con umbral 10% errores ✅
-   - Checksum MD5 anti-duplicados ✅
+2. **SAC Connector (Express - Puerto 4000):**
+   - **Inventario:**
+     - POST `/sync/inventario` - recibe TXT, parsea, valida ✅
+     - GET `/api/inventario` - endpoint REST para consultas ✅
+     - GET `/api/inventario/:sku` - búsqueda por SKU ✅
+     - Parser con umbral 10% errores ✅
+     - Checksum MD5 anti-duplicados ✅
+   - **Clientes:**
+     - POST `/sync/clientes` - recibe CLIENTES.txt de SAC ✅
+     - GET `/api/clientes` - consulta clientes ✅
+     - GET `/api/clientes/:rif` - búsqueda por RIF ✅
+     - POST `/api/clientes/nuevo` - recibe de Vecxel, genera TXT en outbox/ ✅
+     - Parser formato SAC (campos fijos con padding) ✅
+     - Generador TXT en `outbox/` para SAC polling ✅
+   - **Modelos MongoDB:**
+     - `products` (inventario) ✅
+     - `clients` (clientes) ✅
+     - `synclogs` (historial) ✅
 
-3. **Vecxel API (FastAPI):**
-   - Cliente HTTP `SACConnectorClient` creado ✅
-   - Conexión a MongoDB separada (vecxel_app) ✅
-   - httpx instalado ✅
-   - Tests directos funcionan (735 productos) ✅
+3. **Vecxel API (FastAPI - Puerto 8000):**
+   - **Inventario:**
+     - GET `/inventario` - consulta desde SAC Connector vía HTTP ✅
+     - POST `/inventario/sync` - recibe sync desde SAC Connector ✅
+   - **Clientes:**
+     - GET `/clientes` - consulta clientes desde su propia BD ✅
+     - GET `/clientes/{rif}` - búsqueda por RIF ✅
+     - POST `/clientes` - registra nuevo cliente ✅
+     - POST `/clientes/sync` - recibe sync desde SAC Connector ✅
+   - **Cliente HTTP `SACConnectorClient`:**
+     - `get_inventario()` - fetch inventario ✅
+     - `get_logs()` - fetch logs ✅
+     - `create_cliente()` - envía cliente a SAC Connector ✅
+   - **Modelos MongoDB:**
+     - `clientes` (copia local sincronizada) ✅
+     - `cotizaciones` (pendiente) ✅
+     - `pedidos` (pendiente) ✅
 
-4. **Scripts de deployment:**
+4. **Dashboard (Next.js - Puerto 3000):**
+   - **Página Inventario:**
+     - Tabla paginada con búsqueda por SKU ✅
+     - Upload widget para archivos TXT ✅
+     - Drag & drop con validación ✅
+   - **Página Clientes:**
+     - Tabla paginada con búsqueda por nombre ✅
+     - Upload widget para CLIENTES.txt ✅
+     - Modal "Nuevo cliente" con formulario completo ✅
+     - Badge de origen (SAC / Vecxel) ✅
+   - **API Routes:**
+     - `/api/sync/inventario` - proxy a SAC Connector ✅
+     - `/api/sync/clientes` - proxy a SAC Connector ✅
+     - `/api/clientes` - proxy a Vecxel API ✅
+
+5. **Scripts de deployment:**
    - `start.ps1` levanta todo (3 servicios + 2 MongoDB) ✅
    - `stop.ps1` detiene todo ✅
 
-### ✅ Problema Resuelto (01/06/2026)
-
-**Problema anterior:** FastAPI no ejecutaba código actualizado del router
-- Endpoint `/inventario` devolvía `{"total": 0}`
-- Cliente HTTP funcionaba en tests directos (735 productos)
-
-**Causa raíz identificada:**
-- ❌ **Faltaban archivos `.env`** con las variables de entorno requeridas
-- FastAPI no podía conectarse a MongoDB ni a SAC Connector
-
-**Solución aplicada:**
-1. Creado `vecxel-api/.env` con configuración correcta
-2. Creado `sac-connector/.env` con configuración correcta
-3. Reiniciados todos los servicios
-4. Cargados 735 productos desde archivo TXT procesado
-
-**Resultado:**
-- ✅ Sistema completamente funcional
-- ✅ 735 productos sincronizados exitosamente
-- ✅ FastAPI consultando correctamente a SAC Connector vía HTTP
-- ✅ Dashboard mostrando estadísticas en tiempo real
-- ✅ Todos los endpoints respondiendo correctamente
-
 ### 📋 Por Implementar
 
-1. **Flujo App → SAC:**
-   - POST `/api/clientes` en SAC Connector
+1. **Facturas (App → SAC):**
    - POST `/api/facturas` en SAC Connector
-   - Generador de TXT en `outbox/`
-   - Formato SAC para clientes/facturas
+   - Parser formato SAC para facturas
+   - Generador TXT en `outbox/` para SAC polling
+   - POST `/facturas/sync` en Vecxel API
 
 2. **Vecxel API endpoints propios:**
    - CRUD cotizaciones
-   - CRUD clientes internos
    - CRUD pedidos
 
 ## Configuración

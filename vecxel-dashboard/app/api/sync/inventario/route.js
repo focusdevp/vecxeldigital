@@ -4,16 +4,18 @@ const API_URL = process.env.API_URL;
 const API_KEY = process.env.API_KEY;
 
 export async function POST(request) {
-  const contentType = request.headers.get('content-type');
-  const body = await request.arrayBuffer();
+  const formData = await request.formData();
+  const file = formData.get('file');
+
+  const bodyFormData = new FormData();
+  bodyFormData.append('file', file);
 
   const response = await fetch(`${CONNECTOR_URL}/sync/inventario`, {
     method: 'POST',
     headers: {
       'X-API-Key': CONNECTOR_API_KEY,
-      'Content-Type': contentType,
     },
-    body: body,
+    body: bodyFormData,
   });
 
   const data = await response.json();

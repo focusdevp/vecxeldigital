@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight, Users, Plus, X, Loader2, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Users, Plus, X, Loader2, CheckCircle, AlertCircle, Upload, Trash2 } from "lucide-react";
 
 const ESQUEMAS_PAGO = ["CONTADO", "C00", "C15", "C30", "C45", "C60", "C90"];
 
@@ -16,6 +16,8 @@ export default function ClientesClient({ data, currentPage, nombre, limit }) {
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState(nombre);
   const [modalOpen, setModalOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
   const [form, setForm] = useState(campoVacio);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
@@ -52,7 +54,7 @@ export default function ClientesClient({ data, currentPage, nombre, limit }) {
     setUploading(true);
     setUploadResult(null);
     const formData = new FormData();
-    formData.append("archivo", file);
+    formData.append("file", file);
     try {
       const res = await fetch("/api/sync/clientes", { method: "POST", body: formData });
       const data = await res.json();
@@ -96,6 +98,25 @@ export default function ClientesClient({ data, currentPage, nombre, limit }) {
       showToast("error", "Error de conexión con la API.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleReset = async () => {
+    setResetting(true);
+    try {
+      const resSAC = await fetch("/api/sync/clientes/reset", { method: "DELETE" });
+      const resVecxel = await fetch("/api/clientes", { method: "DELETE" });
+      if (resSAC.ok && resVecxel.ok) {
+        showToast("success", "Todos los clientes han sido eliminados.");
+        setResetModalOpen(false);
+        startTransition(() => router.refresh());
+      } else {
+        showToast("error", "Error al eliminar clientes.");
+      }
+    } catch {
+      showToast("error", "Error de conexión con la API.");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -177,13 +198,22 @@ export default function ClientesClient({ data, currentPage, nombre, limit }) {
           <h1 className="text-lg font-semibold text-slate-900">Clientes</h1>
           <p className="text-sm text-slate-500 mt-0.5">{data.total.toLocaleString()} clientes registrados</p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
-        >
-          <Plus size={15} />
-          Nuevo cliente
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setResetModalOpen(true)}
+            className="flex items-center gap-2 h-9 px-4 border border-red-200 hover:bg-red-50 text-red-600 text-sm font-medium rounded-md transition-colors"
+          >
+            <Trash2 size={15} />
+            Eliminar todos
+          </button>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+          >
+            <Plus size={15} />
+            Nuevo cliente
+          </button>
+        </div>
       </div>
 
       {/* Búsqueda */}
@@ -378,6 +408,45 @@ export default function ClientesClient({ data, currentPage, nombre, limit }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación de eliminación */}
+      {resetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <Trash2 size={20} className="text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">Eliminar todos los clientes</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">Esta acción no se puede deshacer</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-5">
+                ¿Estás seguro de que deseas eliminar todos los clientes de SAC Connector y Vecxel API?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setResetModalOpen(false)}
+                  disabled={resetting}
+                  className="h-9 px-4 border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-md transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleReset}
+                  disabled={resetting}
+                  className="h-9 px-4 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-2"
+                >
+                  {resetting && <Loader2 size={14} className="animate-spin" />}
+                  {resetting ? "Borrando..." : "Sí, borrar todo"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
