@@ -17,6 +17,9 @@ router = APIRouter(prefix="/api", tags=["API"])
 async def get_inventory(
     sku: Optional[str] = Query(None, description="Filtrar por SKU (búsqueda parcial)"),
     activo: Optional[bool] = Query(None, description="Filtrar por estado activo"),
+    almacen: Optional[str] = Query(None, description="Código de almacén (00, 30, 40, 60)"),
+    stock_op: Optional[str] = Query(None, description="Operador de comparación (gt, lt, eq, gte, lte)"),
+    stock_value: Optional[int] = Query(None, description="Valor de stock a comparar"),
     page: int = Query(1, ge=1, description="Número de página"),
     limit: int = Query(100, ge=1, le=1000, description="Resultados por página"),
     _: str = Depends(verify_api_key)
@@ -27,6 +30,9 @@ async def get_inventory(
     Query params:
     - sku: Búsqueda parcial por SKU (case-insensitive)
     - activo: Filtrar por productos activos/inactivos
+    - almacen: Código de almacén para filtrar stock (00, 30, 40, 60)
+    - stock_op: Operador de comparación (gt, lt, eq, gte, lte)
+    - stock_value: Valor de stock a comparar
     - page: Número de página (default: 1)
     - limit: Productos por página (default: 100, max: 1000)
     
@@ -44,6 +50,26 @@ async def get_inventory(
     
     if activo is not None:
         filter_query["activo"] = activo
+    
+    # Filtro de stock por almacén
+    if almacen and stock_op and stock_value is not None:
+        # Mapeo de operadores
+        op_map = {
+            "gt": "$gt",
+            "lt": "$lt",
+            "eq": "$eq",
+            "gte": "$gte",
+            "lte": "$lte"
+        }
+        
+        if stock_op in op_map:
+            # Filtrar por existencia en almacén específico
+            filter_query["almacenes"] = {
+                "$elemMatch": {
+                    "codigo": almacen,
+                    "existencia": {op_map[stock_op]: stock_value}
+                }
+            }
     
     # Calcular skip para paginación
     skip = (page - 1) * limit

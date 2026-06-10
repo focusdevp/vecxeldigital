@@ -3,12 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, ChevronLeft, ChevronRight, Package, Eye } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Package, Eye, Filter } from "lucide-react";
 
-export default function InventarioClient({ data, currentPage, sku, limit }) {
+export default function InventarioClient({ data, currentPage, sku, almacen: almacenParam, stock_op, stock_value, limit }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [search, setSearch] = useState(sku);
+  const [search, setSearch] = useState(sku || "");
+  const [almacen, setAlmacen] = useState(almacenParam || "");
+  const [stockOp, setStockOp] = useState(stock_op || "lt");
+  const [stockValue, setStockValue] = useState(stock_value || "");
   const totalPages = Math.ceil(data.total / limit);
 
   const applySearch = (value) => {
@@ -20,10 +23,35 @@ export default function InventarioClient({ data, currentPage, sku, limit }) {
     });
   };
 
+  const applyFilters = () => {
+    startTransition(() => {
+      const params = new URLSearchParams();
+      if (almacen) params.set("almacen", almacen);
+      if (stockOp) params.set("stock_op", stockOp);
+      if (stockValue) params.set("stock_value", stockValue);
+      params.set("page", "1");
+      router.push(`/inventario?${params.toString()}`);
+    });
+  };
+
+  const clearFilters = () => {
+    setAlmacen("");
+    setStockOp("lt");
+    setStockValue("");
+    startTransition(() => {
+      router.push("/inventario?page=1");
+    });
+  };
+
   const goToPage = (p) => {
     startTransition(() => {
       const params = new URLSearchParams();
+      // Preservar búsqueda por SKU
       if (sku) params.set("sku", sku);
+      // Preservar filtros de stock
+      if (almacenParam) params.set("almacen", almacenParam);
+      if (stock_op) params.set("stock_op", stock_op);
+      if (stock_value) params.set("stock_value", stock_value);
       params.set("page", String(p));
       router.push(`/inventario?${params.toString()}`);
     });
@@ -38,6 +66,7 @@ export default function InventarioClient({ data, currentPage, sku, limit }) {
         </p>
       </div>
 
+      {/* Búsqueda por SKU */}
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -60,6 +89,77 @@ export default function InventarioClient({ data, currentPage, sku, limit }) {
             Limpiar
           </button>
         )}
+      </div>
+
+      {/* Separador */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex-1 border-t border-slate-200"></div>
+        <span className="text-xs text-slate-400 font-medium">O</span>
+        <div className="flex-1 border-t border-slate-200"></div>
+      </div>
+
+      {/* Filtros por Stock */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter size={14} className="text-slate-500" />
+          <h3 className="text-sm font-medium text-slate-700">Filtrar por Stock</h3>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <label className="block text-xs text-slate-600 mb-1.5">Almacén</label>
+            <select
+              value={almacen}
+              onChange={(e) => setAlmacen(e.target.value)}
+              className="w-full h-9 bg-white border border-slate-200 rounded-md px-3 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Todos los almacenes</option>
+              <option value="00">Principal (00)</option>
+              <option value="30">Barquisimeto (30)</option>
+              <option value="40">Valencia (40)</option>
+              <option value="60">Oriente (60)</option>
+            </select>
+          </div>
+          <div className="w-32">
+            <label className="block text-xs text-slate-600 mb-1.5">Operador</label>
+            <select
+              value={stockOp}
+              onChange={(e) => setStockOp(e.target.value)}
+              className="w-full h-9 bg-white border border-slate-200 rounded-md px-3 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="lt">Menor que (&lt;)</option>
+              <option value="lte">Menor o igual (≤)</option>
+              <option value="eq">Igual (=)</option>
+              <option value="gte">Mayor o igual (≥)</option>
+              <option value="gt">Mayor que (&gt;)</option>
+            </select>
+          </div>
+          <div className="w-32">
+            <label className="block text-xs text-slate-600 mb-1.5">Cantidad</label>
+            <input
+              type="number"
+              value={stockValue}
+              onChange={(e) => setStockValue(e.target.value)}
+              placeholder="0"
+              min="0"
+              className="w-full h-9 bg-white border border-slate-200 rounded-md px-3 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex gap-2" style={{marginTop: "20px"}}>
+            <button
+              onClick={applyFilters}
+              disabled={!almacen || !stockValue}
+              className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Aplicar Filtros
+            </button>
+            <button
+              onClick={clearFilters}
+              className="h-9 px-4 border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium rounded-md transition-colors"
+            >
+              Limpiar
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className={`bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm transition-opacity ${isPending ? "opacity-50" : ""}`}>
