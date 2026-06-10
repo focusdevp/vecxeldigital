@@ -67,8 +67,13 @@ class SFTPMonitor:
                 if file_key in self.processed_files:
                     continue
                 
+                # Marcar como procesado INMEDIATAMENTE para evitar race condition
+                self.processed_files.add(file_key)
+                
                 # Verificar que el archivo esté completo
                 if not self.is_file_ready(file_path):
+                    # Si no está listo, remover de procesados para intentar después
+                    self.processed_files.discard(file_key)
                     continue
                 
                 # Procesar archivo
@@ -137,9 +142,6 @@ class SFTPMonitor:
                 logger.error(f"❌ Error de validación: {error_msg}")
             else:
                 logger.error(f"❌ Error HTTP {response.status_code}: {response.text[:200]}")
-            
-            # Marcar como procesado
-            self.processed_files.add(str(file_path))
             
             # Mover archivo a carpeta processed
             processed_dir = self.watch_dir / "processed"

@@ -296,14 +296,56 @@ export default function ClientesClient({ data, currentPage, nombre, limit }) {
           <p className="text-xs text-slate-500">
             Página {currentPage} de {totalPages} — {data.total.toLocaleString()} clientes
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {/* Botón anterior */}
             <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1}
-              className="p-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-              <ChevronLeft size={14} />
+              className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              <ChevronLeft size={16} />
             </button>
+
+            {/* Páginas */}
+            {(() => {
+              const pages = [];
+              const delta = 3; // Páginas cercanas a mostrar (±3)
+              const left = currentPage - delta;
+              const right = currentPage + delta;
+              
+              for (let i = 1; i <= totalPages; i++) {
+                // Siempre mostrar: primera, última, páginas cercanas a la actual
+                if (i === 1 || i === totalPages || (i >= left && i <= right)) {
+                  // Agregar separador si hay salto
+                  if (pages.length > 0) {
+                    const lastPage = pages[pages.length - 1];
+                    if (lastPage.key && parseInt(lastPage.key) !== i - 1) {
+                      pages.push(
+                        <span key={`dots-${i}`} className="w-8 h-8 flex items-center justify-center text-slate-400 text-sm">
+                          ...
+                        </span>
+                      );
+                    }
+                  }
+                  
+                  // Agregar botón de página
+                  pages.push(
+                    <button key={i} onClick={() => goToPage(i)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-md text-sm transition-colors ${
+                        i === currentPage
+                          ? "bg-blue-600 text-white font-medium"
+                          : "hover:bg-slate-100 text-slate-600"
+                      }`}>
+                      {i}
+                    </button>
+                  );
+                }
+              }
+
+              return pages;
+            })()}
+
+            {/* Botón siguiente */}
             <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages}
-              className="p-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-              <ChevronRight size={14} />
+              className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-slate-100 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
