@@ -133,13 +133,13 @@ async def health_check():
 
     Útil para monitoreo y verificación de que el servicio está corriendo
     """
-    from datetime import datetime
+    from app.utils.timezone import ve_iso
 
     return {
         "status": "ok",
         "service": "sac-connector-fastapi",
         "version": "2.0.0",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": ve_iso()
     }
 
 

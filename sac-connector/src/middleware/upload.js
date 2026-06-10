@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { formatCaracasFilenameTimestamp } = require('../utils/time');
 
 const inboxDir = path.join(__dirname, '../../inbox');
 
@@ -13,7 +14,7 @@ const storage = multer.diskStorage({
     cb(null, inboxDir);
   },
   filename: (req, file, cb) => {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = formatCaracasFilenameTimestamp();
     const ext = path.extname(file.originalname);
     const name = path.basename(file.originalname, ext);
     cb(null, `${name}_${timestamp}${ext}`);

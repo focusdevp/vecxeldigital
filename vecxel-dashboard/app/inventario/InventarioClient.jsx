@@ -70,10 +70,10 @@ export default function InventarioClient({ data, currentPage, sku, limit }) {
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Descripción</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Unidad</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Precio</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Alm 00</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Alm 30</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Alm 40</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Alm 60</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider" title="Almacén Principal">Principal (00)</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider" title="Almacén Barquisimeto">Barquisimeto (30)</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider" title="Almacén Valencia">Valencia (40)</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider" title="Almacén Oriente">Oriente (60)</th>
               <th className="text-center px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Estado</th>
               <th className="px-4 py-3"></th>
             </tr>

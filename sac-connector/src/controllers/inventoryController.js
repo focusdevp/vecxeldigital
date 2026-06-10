@@ -6,10 +6,15 @@ const Product = require('../models/Product');
 const SyncLog = require('../models/SyncLog');
 const { validateAndParseInventoryFile } = require('../services/inventoryParser');
 const { validateInventoryFile } = require('../services/fileValidator');
+const { formatCaracasTimestamp, formatCaracasFilenameTimestamp } = require('../utils/time');
 
 const storageDir = path.join(__dirname, '../../storage/uploads');
+const failedDir = path.join(__dirname, '../../storage/failed');
 if (!fs.existsSync(storageDir)) {
   fs.mkdirSync(storageDir, { recursive: true });
+}
+if (!fs.existsSync(failedDir)) {
+  fs.mkdirSync(failedDir, { recursive: true });
 }
 
 const uploadInventory = async (req, res) => {
@@ -31,21 +36,24 @@ const uploadInventory = async (req, res) => {
     
     // Si la validación falla, rechazar inmediatamente
     if (!validationReport.isValid) {
-      // Eliminar archivo inválido
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      
-      // Registrar intento fallido en logs
-      // Convertir errores a formato esperado por el schema
+      // Registrar intento fallido en logs y mover el archivo inválido a storage/failed
       const erroresFormateados = validationReport.errores.slice(0, 50).map((error, index) => ({
         linea: index + 1,
         contenido: '',
         motivo: typeof error === 'string' ? error : JSON.stringify(error)
       }));
       
+      const failedStoragePath = path.join(failedDir, fileName);
+      if (fs.existsSync(filePath)) {
+        fs.renameSync(filePath, failedStoragePath);
+      }
+
       await SyncLog.create({
         tipo: 'upload',
         entidad: 'inventario',
         archivo: receivedFile.originalname || fileName,
+        archivo_path: failedStoragePath,
+        fail_reason: validationReport.errores.slice(0, 3).join(' | '),
         inicio_procesamiento: inicio_procesamiento,
         fin_procesamiento: new Date(),
         duracion_ms: Date.now() - inicio_procesamiento,
@@ -63,7 +71,7 @@ const uploadInventory = async (req, res) => {
         codigo_error: 'VALIDATION_FAILED',
         mensaje: 'El archivo no cumple con los requisitos de validación',
         validaciones: validationReport,
-        timestamp: new Date().toISOString()
+        timestamp: formatCaracasTimestamp(new Date())
       });
     }
     
@@ -119,7 +127,7 @@ const uploadInventory = async (req, res) => {
           {
             productos: products,
             origen: 'sac',
-            timestamp: fin_procesamiento.toISOString()
+            timestamp: formatCaracasTimestamp(fin_procesamiento)
           },
           {
             headers: {
@@ -168,16 +176,21 @@ const uploadInventory = async (req, res) => {
       duracion_ms,
       estado,
       log_id: log._id,
-      timestamp: fin_procesamiento.toISOString()
+      timestamp: formatCaracasTimestamp(fin_procesamiento)
     });
   } catch (error) {
     const fin_procesamiento = new Date();
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const failedStoragePath = path.join(failedDir, `${fileName}`);
+    if (fs.existsSync(filePath)) {
+      fs.renameSync(filePath, failedStoragePath);
+    }
 
     await SyncLog.create({
       tipo: 'upload',
       entidad: 'inventario',
       archivo: fileName,
+      archivo_path: failedStoragePath,
+      fail_reason: error.message,
       inicio_procesamiento,
       fin_procesamiento,
       duracion_ms: fin_procesamiento - inicio_procesamiento,

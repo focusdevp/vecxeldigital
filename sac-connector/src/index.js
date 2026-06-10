@@ -6,6 +6,7 @@ const connectDB = require('./config/db');
 const syncRoutes = require('./routes/sync');
 const apiRoutes = require('./routes/api');
 const clientRoutes = require('./routes/clients');
+const { formatCaracasTimestamp } = require('./utils/time');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -21,7 +22,7 @@ app.get('/health', (req, res) => {
     status: 'ok',
     service: 'sac-connector',
     version: '1.0.0',
-    timestamp: new Date().toISOString()
+    timestamp: formatCaracasTimestamp()
   });
 });
 

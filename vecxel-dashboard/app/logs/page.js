@@ -1,20 +1,43 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle, AlertTriangle, XCircle, Upload, Download, ClipboardList } from "lucide-react";
 
-export default async function LogsPage() {
-  let data = { logs: [], total: 0 };
+export default function LogsPage() {
+  const [data, setData] = useState({ logs: [], total: 0 });
+  const [loading, setLoading] = useState(true);
 
-  try {
-    const res = await fetch(
-      `${process.env.CONNECTOR_URL}/sync/logs?limit=50`,
-      { headers: { "X-API-Key": process.env.CONNECTOR_API_KEY }, cache: "no-store" }
-    );
-    if (res.ok) data = await res.json();
-  } catch {}
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch(`/api/sync/logs?limit=50`, { cache: "no-store" });
+        if (res.ok) {
+          const result = await res.json();
+          setData(result);
+        }
+      } catch {}
+      setLoading(false);
+    };
+
+    fetchLogs();
+  }, []);
 
   const formatDate = (iso) => {
     if (!iso) return "—";
-    return new Date(iso).toLocaleString("es-VE", { dateStyle: "short", timeStyle: "medium" });
+    const date = new Date(iso);
+    // Asegurar que la fecha se interprete correctamente en timezone de Venezuela
+    const options = {
+      timeZone: "America/Caracas",
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    };
+    return date.toLocaleString("es-VE", options);
   };
 
   const formatDuration = (ms) => {
@@ -40,6 +63,7 @@ export default async function LogsPage() {
       <div className="mb-6">
         <h1 className="text-lg font-semibold text-slate-900">Logs de Sincronización</h1>
         <p className="text-sm text-slate-500 mt-0.5">{data.total} operaciones registradas</p>
+        <p className="text-xs text-slate-400 mt-1">Fechas mostradas en horario de Caracas (America/Caracas).</p>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-lg overflow-x-auto shadow-sm">
@@ -51,6 +75,7 @@ export default async function LogsPage() {
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Duración</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Tipo</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Archivo</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Motivo</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">OK</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">Err</th>
@@ -59,9 +84,16 @@ export default async function LogsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {data.logs.length === 0 ? (
+            {loading ? (
               <tr>
-                <td colSpan={10} className="text-center py-16">
+                <td colSpan={11} className="text-center py-16">
+                  <ClipboardList size={28} className="mx-auto mb-2 text-slate-300 animate-pulse" />
+                  <p className="text-sm text-slate-400">Cargando logs...</p>
+                </td>
+              </tr>
+            ) : data.logs.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="text-center py-16">
                   <ClipboardList size={28} className="mx-auto mb-2 text-slate-300" />
                   <p className="text-sm text-slate-400">No hay logs registrados aún</p>
                 </td>
@@ -94,6 +126,9 @@ export default async function LogsPage() {
                   </td>
                   <td className="px-4 py-2.5 text-slate-500 text-xs font-mono max-w-[200px] truncate">
                     {log.archivo ?? "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-500 text-xs max-w-[240px] truncate">
+                    {log.fail_reason ?? "—"}
                   </td>
                   <td className="px-4 py-2.5 text-right text-slate-700 text-xs">{log.total_registros}</td>
                   <td className="px-4 py-2.5 text-right text-emerald-600 text-xs font-semibold">{log.registros_procesados}</td>

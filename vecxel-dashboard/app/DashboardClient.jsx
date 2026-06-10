@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useRef } from "react";
-import { Upload, Package, CheckCircle, AlertCircle, Clock, Trash2 } from "lucide-react";
+import { Upload, Package, CheckCircle, AlertCircle, Clock, Trash2, ArrowRight } from "lucide-react";
 
 export default function DashboardClient({ stats }) {
   const [dragging, setDragging] = useState(false);
@@ -76,18 +77,27 @@ export default function DashboardClient({ stats }) {
 
   return (
     <div className="p-8 max-w-4xl">
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
         <div>
           <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
           <p className="text-sm text-slate-500 mt-0.5">Sincronización con SAC — Sistema Administrativo</p>
         </div>
-        <button
-          onClick={() => setShowConfirm(true)}
-          className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 border border-slate-200 rounded-md text-sm font-medium transition-colors"
-        >
-          <Trash2 size={14} />
-          Borrar todo
-        </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Link
+            href="/flujo"
+            className="inline-flex items-center gap-2 rounded-2xl border border-cyan-500 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-500/15"
+          >
+            Ver Flujo
+            <ArrowRight size={16} />
+          </Link>
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 border border-slate-200 rounded-md text-sm font-medium transition-colors"
+          >
+            <Trash2 size={14} />
+            Borrar todo
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">

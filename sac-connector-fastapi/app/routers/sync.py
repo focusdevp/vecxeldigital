@@ -4,7 +4,6 @@ Router de sincronización - Upload y procesamiento de archivos SAC
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
-from datetime import datetime
 from pathlib import Path
 import hashlib
 import httpx
@@ -17,6 +16,7 @@ from app.services.client_generator import generate_clientes_file
 from app.services.client_validator import validate_clientes_file
 from app.models import ErrorDetail
 from app.config import get_settings
+from app.utils.timezone import now_ve, ve_iso, ve_filename_timestamp, one_hour_ago_ve
 from pymongo import UpdateOne
 
 router = APIRouter(prefix="/sync", tags=["Sincronización"])
@@ -24,7 +24,9 @@ settings = get_settings()
 
 # Crear directorio de storage si no existe
 STORAGE_DIR = Path("storage/uploads")
+FAILED_DIR = STORAGE_DIR / "failed"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+FAILED_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @router.post("/inventario")
@@ -46,7 +48,7 @@ async def upload_inventory(
     4. Validación de reglas de negocio
     5. Validación de integridad
     """
-    inicio_procesamiento = datetime.utcnow()
+    inicio_procesamiento = now_ve()
     db = get_db()
     
     if not file:
@@ -71,20 +73,27 @@ async def upload_inventory(
                 for idx, error in enumerate(validation_report["errores"][:50])
             ]
             
+            failed_storage_path = FAILED_DIR / f"{ve_filename_timestamp()}_{file.filename}"
+            with open(failed_storage_path, "wb") as failed_file:
+                failed_file.write(file_content)
+
+            fin_procesamiento = now_ve()
             await db.synclogs.insert_one({
                 "tipo": "upload",
                 "entidad": "inventario",
                 "archivo": file.filename,
+                "archivo_path": str(failed_storage_path),
+                "fail_reason": " | ".join(str(e) for e in validation_report.get("errores", [])[:3]),
                 "inicio_procesamiento": inicio_procesamiento,
-                "fin_procesamiento": datetime.utcnow(),
-                "duracion_ms": int((datetime.utcnow() - inicio_procesamiento).total_seconds() * 1000),
+                "fin_procesamiento": fin_procesamiento,
+                "duracion_ms": int((fin_procesamiento - inicio_procesamiento).total_seconds() * 1000),
                 "total_registros": validation_report.get("estructura", {}).get("lineas_totales", 0),
                 "registros_procesados": 0,
                 "registros_error": validation_report.get("estructura", {}).get("lineas_totales", 0),
                 "errores": [e.dict() for e in errores_formateados],
                 "estado": "fallido",
                 "ip_origen": request.client.host if request.client else None,
-                "createdAt": datetime.utcnow()
+                "createdAt": now_ve()
             })
             
             raise HTTPException(
@@ -94,7 +103,7 @@ async def upload_inventory(
                     "codigo_error": "VALIDATION_FAILED",
                     "mensaje": "El archivo no cumple con los requisitos de validación",
                     "validaciones": validation_report,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": ve_iso(fin_procesamiento)
                 }
             )
         
@@ -115,8 +124,7 @@ async def upload_inventory(
         checksum = hashlib.md5(content.encode()).hexdigest()
         
         # Verificar duplicados recientes (última hora)
-        one_hour_ago = datetime.utcnow()
-        one_hour_ago = one_hour_ago.replace(hour=one_hour_ago.hour - 1) if one_hour_ago.hour > 0 else one_hour_ago
+        one_hour_ago = one_hour_ago_ve()
         
         duplicate = await db.synclogs.find_one({
             "checksum": checksum,
@@ -125,12 +133,40 @@ async def upload_inventory(
         })
         
         if duplicate:
+            # Guardar log de duplicado
+            failed_storage_path = FAILED_DIR / f"{ve_filename_timestamp()}_{file.filename}"
+            with open(failed_storage_path, "wb") as failed_file:
+                failed_file.write(file_content)
+
+            fin_procesamiento = now_ve()
+            duplicate_log = await db.synclogs.insert_one({
+                "tipo": "upload",
+                "entidad": "inventario",
+                "archivo": file.filename,
+                "archivo_path": str(failed_storage_path),
+                "checksum": checksum,
+                "fail_reason": "Archivo duplicado - ya procesado en la última hora",
+                "duplicate_log_id": str(duplicate["_id"]),
+                "duplicate_timestamp": duplicate.get("createdAt"),
+                "inicio_procesamiento": inicio_procesamiento,
+                "fin_procesamiento": fin_procesamiento,
+                "duracion_ms": int((fin_procesamiento - inicio_procesamiento).total_seconds() * 1000),
+                "total_registros": 0,
+                "registros_procesados": 0,
+                "registros_error": 1,
+                "errores": [{"linea": 0, "contenido": "", "motivo": "Archivo duplicado - ya procesado en la última hora"}],
+                "estado": "fallido",
+                "ip_origen": request.client.host if request.client else None,
+                "createdAt": now_ve()
+            })
+
             raise HTTPException(
                 status_code=409,
                 detail={
                     "success": False,
                     "error": "Este archivo ya fue procesado en la última hora. Verifique si es un duplicado.",
-                    "log_id": str(duplicate["_id"])
+                    "log_id": str(duplicate["_id"]),
+                    "duplicate_log_id": str(duplicate_log.inserted_id)
                 }
             )
         
@@ -160,7 +196,7 @@ async def upload_inventory(
                 bulk_result.matched_count
             )
         
-        fin_procesamiento = datetime.utcnow()
+        fin_procesamiento = now_ve()
         duracion_ms = int((fin_procesamiento - inicio_procesamiento).total_seconds() * 1000)
         estado = "exitoso" if len(errors) == 0 else ("parcial" if procesados > 0 else "fallido")
         
@@ -185,7 +221,7 @@ async def upload_inventory(
                         json={
                             "productos": productos_json,
                             "origen": "sac",
-                            "timestamp": fin_procesamiento.isoformat()
+                            "timestamp": ve_iso(fin_procesamiento)
                         },
                         headers={
                             "X-API-Key": settings.VECXEL_API_KEY,
@@ -205,7 +241,7 @@ async def upload_inventory(
                 # Los datos ya están guardados en SAC Connector
         
         # Guardar archivo procesado
-        storage_path = STORAGE_DIR / f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        storage_path = STORAGE_DIR / f"{ve_filename_timestamp()}_{file.filename}"
         with open(storage_path, "wb") as f:
             f.write(file_content)
         
@@ -225,7 +261,7 @@ async def upload_inventory(
             "errores": [e.dict() for e in errors[:50]],  # Limitar a 50 errores
             "estado": estado,
             "ip_origen": request.client.host if request.client else None,
-            "createdAt": datetime.utcnow()
+            "createdAt": now_ve()
         }
         
         log_result = await db.synclogs.insert_one(log_doc)
@@ -240,19 +276,23 @@ async def upload_inventory(
             "duracion_ms": duracion_ms,
             "estado": estado,
             "log_id": str(log_result.inserted_id),
-            "timestamp": fin_procesamiento.isoformat()
+            "timestamp": ve_iso(fin_procesamiento)
         }
         
     except HTTPException:
         raise
     except Exception as error:
-        fin_procesamiento = datetime.utcnow()
+        fin_procesamiento = now_ve()
+        failed_storage_path = FAILED_DIR / f"{ve_filename_timestamp()}_{file.filename}"
+        with open(failed_storage_path, "wb") as failed_file:
+            failed_file.write(file_content)
         
-        # Guardar log de error
         await db.synclogs.insert_one({
             "tipo": "upload",
             "entidad": "inventario",
             "archivo": file.filename,
+            "archivo_path": str(failed_storage_path),
+            "fail_reason": str(error),
             "inicio_procesamiento": inicio_procesamiento,
             "fin_procesamiento": fin_procesamiento,
             "duracion_ms": int((fin_procesamiento - inicio_procesamiento).total_seconds() * 1000),
@@ -262,7 +302,7 @@ async def upload_inventory(
             "errores": [{"linea": 0, "contenido": "", "motivo": str(error)}],
             "estado": "fallido",
             "ip_origen": request.client.host if request.client else None,
-            "createdAt": datetime.utcnow()
+            "createdAt": now_ve()
         })
         
         raise HTTPException(status_code=422, detail={"success": False, "error": str(error)})
@@ -346,6 +386,33 @@ async def download_inventory_file(
     )
 
 
+@router.get("/inventario/{sku}")
+async def get_product_by_sku(
+    sku: str,
+    _: str = Depends(verify_api_key)
+):
+    """
+    Obtener detalles de un producto por SKU
+    """
+    db = get_db()
+    
+    producto = await db.products.find_one({"sku": sku})
+    
+    if not producto:
+        raise HTTPException(
+            status_code=404,
+            detail={"success": False, "error": f"Producto con SKU '{sku}' no encontrado"}
+        )
+    
+    # Convertir ObjectId a string
+    producto["_id"] = str(producto["_id"])
+    
+    return {
+        "success": True,
+        "producto": producto
+    }
+
+
 @router.delete("/inventario/reset")
 async def reset_inventory(
     _: str = Depends(verify_api_key)
@@ -397,7 +464,7 @@ async def upload_clientes(
     4. Validación de reglas de negocio
     5. Validación de integridad
     """
-    inicio = datetime.utcnow()
+    inicio = now_ve()
     db = get_db()
 
     if not file:
@@ -444,7 +511,7 @@ async def upload_clientes(
         operations = [
             UpdateOne(
                 {"rif": c["rif"]},
-                {"$set": {**c, "ultima_sincronizacion": datetime.utcnow()}},
+                {"$set": {**c, "ultima_sincronizacion": now_ve()}},
                 upsert=True
             )
             for c in clientes
@@ -461,7 +528,7 @@ async def upload_clientes(
                 bulk_result.matched_count
             )
 
-        duracion_ms = int((datetime.utcnow() - inicio).total_seconds() * 1000)
+        duracion_ms = int((now_ve() - inicio).total_seconds() * 1000)
         estado = "exitoso" if len(errors) == 0 else ("parcial" if procesados > 0 else "fallido")
 
         # SINCRONIZAR CON VECXEL API
@@ -483,7 +550,7 @@ async def upload_clientes(
                         json={
                             "clientes": clientes_json,
                             "origen": "sac",
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": ve_iso()
                         },
                         headers={
                             "X-API-Key": settings.VECXEL_API_KEY,
@@ -501,7 +568,7 @@ async def upload_clientes(
                 print(f"[SAC Connector FastAPI] [ERROR] Sincronizando con Vecxel API: {str(sync_error)}")
 
         # Guardar archivo procesado
-        storage_path = STORAGE_DIR / f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+        storage_path = STORAGE_DIR / f"{ve_filename_timestamp()}_{file.filename}"
         with open(storage_path, "wb") as f:
             f.write(file_content)
 
@@ -512,7 +579,7 @@ async def upload_clientes(
             "archivo": file.filename,
             "archivo_path": str(storage_path),
             "inicio_procesamiento": inicio,
-            "fin_procesamiento": datetime.utcnow(),
+            "fin_procesamiento": now_ve(),
             "duracion_ms": duracion_ms,
             "total_registros": result.total_lineas,
             "registros_procesados": procesados,
@@ -520,7 +587,7 @@ async def upload_clientes(
             "errores": [e.dict() for e in errors[:50]],
             "estado": estado,
             "ip_origen": request.client.host if request.client else None,
-            "createdAt": datetime.utcnow()
+            "createdAt": now_ve()
         })
 
         return {

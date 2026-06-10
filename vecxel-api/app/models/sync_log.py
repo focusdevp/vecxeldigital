@@ -21,6 +21,7 @@ class SyncLog(BaseModel):
     registros_error: int = 0
     errores: List[ErrorDetail] = []
     estado: str
+    fail_reason: Optional[str] = None
     sacok: bool = False
     ip_origen: Optional[str] = None
     createdAt: Optional[datetime] = None

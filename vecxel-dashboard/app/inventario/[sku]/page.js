@@ -25,6 +25,18 @@ export default async function ProductoDetallePage({ params }) {
   const formatDate = (iso) =>
     new Date(iso).toLocaleString("es-VE", { dateStyle: "long", timeStyle: "short" });
 
+  // Mapeo de códigos de almacén a nombres
+  const almacenNames = {
+    "00": "Almacén Principal",
+    "30": "Almacén Barquisimeto",
+    "40": "Almacén Valencia",
+    "60": "Almacén Oriente"
+  };
+
+  const getAlmacenName = (codigo) => {
+    return almacenNames[codigo] || `Almacén ${codigo}`;
+  };
+
   const totalStock = producto.almacenes?.reduce((acc, a) => acc + a.existencia, 0) ?? 0;
 
   return (
@@ -87,7 +99,7 @@ export default async function ProductoDetallePage({ params }) {
         <div className="grid grid-cols-2 gap-3">
           {producto.almacenes?.map((alm) => (
             <div key={alm.codigo} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-md px-4 py-3">
-              <span className="text-sm text-slate-500">Almacén <span className="font-mono font-semibold text-slate-900">{alm.codigo}</span></span>
+              <span className="text-sm text-slate-500">{getAlmacenName(alm.codigo)} <span className="font-mono font-semibold text-slate-900">({alm.codigo})</span></span>
               <span className={`text-lg font-bold ${alm.existencia > 0 ? "text-blue-600" : "text-slate-400"}`}>
                 {alm.existencia}
               </span>

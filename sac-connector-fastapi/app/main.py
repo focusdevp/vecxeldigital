@@ -85,13 +85,13 @@ async def health():
     """
     Health check global
     """
-    from datetime import datetime
+    from app.utils.timezone import ve_iso
     
     return {
         "status": "ok",
         "service": "sac-connector-fastapi",
         "version": "2.0.0",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": ve_iso()
     }
 
 
