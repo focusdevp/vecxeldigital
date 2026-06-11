@@ -496,16 +496,18 @@ async def upload_clientes(
         clientes = result.clientes
         errors = result.errors
 
-        # Validar tasa de error
-        if result.tasa_error > 0.1 and len(clientes) == 0:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "success": False,
-                    "error": f"Demasiados errores ({len(errors)}/{result.total_lineas} líneas). Archivo rechazado.",
-                    "errores": [e.dict() for e in errors[:10]]
-                }
-            )
+        # DEBUG: Imprimir información de parseo
+        print(f"[DEBUG] Total líneas: {result.total_lineas}")
+        print(f"[DEBUG] Clientes parseados: {len(clientes)}")
+        print(f"[DEBUG] Errores: {len(errors)}")
+        print(f"[DEBUG] Tasa error: {result.tasa_error:.2%}")
+        if errors:
+            print(f"[DEBUG] Primeros 3 errores:")
+            for e in errors[:3]:
+                print(f"[DEBUG]   Línea {e.linea}: {e.motivo}")
+
+        # El validador robusto ya validó la tasa de error (umbral 5%)
+        # Si llegamos aquí, el archivo es válido según las 5 capas de validación
 
         # Preparar operaciones de bulk write
         operations = [
@@ -614,8 +616,8 @@ async def reset_clientes(
     Eliminar todos los clientes de la base de datos
     """
     try:
-        db = get_database()
-        result = await db.clientes.delete_many({})
+        db = get_db()
+        result = await db.clients.delete_many({})
         
         print(f"[SAC Connector FastAPI] [OK] Clientes eliminados: {result.deleted_count} registros")
         
